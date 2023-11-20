@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Lambdaless API
+
+  '
+Resources:
+  BringTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+      - AttributeName: pk
+        KeyType: HASH
+      AttributeDefinitions:
+      - AttributeName: pk
+        AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+  BringAPI:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Lambdaless
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: BringAPIUsagePlan
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ../../bring-openapi.yaml
+  BringAPIRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - apigateway.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: BringAPIPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+            - dynamodb:DeleteItem
+            - dynamodb:GetItem
+            - dynamodb:Scan
+            Resource:
+              Fn::GetAtt:
+              - BringTable
+              - Arn
+Outputs:
+  BringURL:
+    Description: Bring URL
+    Value:
+      Fn::Join:
+      - ''
+      - - https://
+        - Ref: BringAPI
+        - .execute-api.
+        - Fn::Sub: ${AWS::Region}
+        - .amazonaws.com/Lambdaless
+  ApiKeyId:
+    Description: API Key ApiKeyId
+    Value:
+      Ref: BringAPIApiKey
