@@ -1,10 +1,10 @@
 openapi: 3.0.1
 info:
-  title: Bring API
+  title: Generic Key Value API
   version: 1.0.0
 
 servers:
-  - url: https://m8v6kzx9of.execute-api.eu-central-1.amazonaws.com/Lambdaless
+  - url: https://vnuuem5hmf.execute-api.eu-central-1.amazonaws.com/Lambdaless
 
 security:
   - ApiKeyAuth: []
@@ -20,7 +20,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/responses/Bring"
+                  $ref: "#/components/responses/Entry"
 
       x-amazon-apigateway-integration:
         httpMethod: POST
@@ -29,7 +29,7 @@ paths:
           {
             "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:dynamodb:action/Scan",
           }
-        credentials: { "Fn::GetAtt": [BringAPIRole, Arn] }
+        credentials: { "Fn::GetAtt": [KeyValueAPIRole, Arn] }
         requestTemplates:
           application/json:
             Fn::Sub:
@@ -37,7 +37,7 @@ paths:
                 {
                   "TableName": "${tableName}"
                 }
-              - { tableName: { Ref: BringTable } }
+              - { tableName: { Ref: KeyValueTable } }
         responses:
           default:
             statusCode: 200
@@ -53,13 +53,8 @@ paths:
 
     post:
       responses:
-        201:
-          $ref: "#/components/responses/Created"
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/Bring"
+        200:
+          $ref: "#/components/responses/Empty"
       x-amazon-apigateway-integration:
         httpMethod: POST
         type: AWS
@@ -67,7 +62,7 @@ paths:
           {
             "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:dynamodb:action/PutItem",
           }
-        credentials: { "Fn::GetAtt": [BringAPIRole, Arn] }
+        credentials: { "Fn::GetAtt": [KeyValueAPIRole, Arn] }
         requestTemplates:
           application/json:
             Fn::Sub:
@@ -76,22 +71,18 @@ paths:
                   "TableName": "${tableName}",
                   "Item": {
                     "pk": {
-                      "S": "$context.requestId"
+                      "S": "$input.path("$.id")"
                     },
                     "value": {
                       "S": "$input.path("$.value")"
                     }
                   }
                 }
-              - { tableName: { Ref: BringTable } }
+              - { tableName: { Ref: KeyValueTable } }
         responses:
           default:
-            statusCode: 201
-            responseTemplates:
-              application/json: '#set($inputRoot = $input.path("$"))
-                {
-                "id": "$context.requestId"
-                }'
+            statusCode: 200
+
   /bring/{key}:
     get:
       parameters:
@@ -102,7 +93,7 @@ paths:
             type: string
       responses:
         200:
-          $ref: "#/components/responses/Bring"
+          $ref: "#/components/responses/Entry"
       x-amazon-apigateway-integration:
         httpMethod: POST
         type: AWS
@@ -110,7 +101,7 @@ paths:
           {
             "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:dynamodb:action/GetItem",
           }
-        credentials: { "Fn::GetAtt": [BringAPIRole, Arn] }
+        credentials: { "Fn::GetAtt": [KeyValueAPIRole, Arn] }
         requestTemplates:
           application/json:
             Fn::Sub:
@@ -123,7 +114,7 @@ paths:
                           }
                         }
                 }
-              - { tableName: { Ref: BringTable } }
+              - { tableName: { Ref: KeyValueTable } }
         responses:
           default:
             statusCode: 200
@@ -133,47 +124,6 @@ paths:
                 "id": "$inputRoot.Item.pk.S",
                 "value": "$inputRoot.Item.value.S"
                 }'
-
-    put:
-      parameters:
-        - name: "key"
-          in: "path"
-          required: true
-          schema:
-            type: string
-      responses:
-        204:
-          description: The bring was updated
-      x-amazon-apigateway-integration:
-        httpMethod: POST
-        type: AWS
-        uri:
-          {
-            "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:dynamodb:action/UpdateItem",
-          }
-        credentials: { "Fn::GetAtt": [BringAPIRole, Arn] }
-        requestTemplates:
-          application/json:
-            Fn::Sub:
-              - |-
-                {
-                  "TableName": "${tableName}",
-                  "Key": {
-                          "pk": {
-                            "S": "$input.params("key")"
-                          }
-                        },
-                  "UpdateExpression": "SET value = :value",
-                  "ExpressionAttributeValues": {
-                    ":value":  {
-                                "S": "$input.path("$.value")"
-                              }
-                  }
-                }
-              - { tableName: { Ref: BringTable } }
-        responses:
-          default:
-            statusCode: 204
 
     delete:
       parameters:
@@ -186,7 +136,7 @@ paths:
         204:
           description: The bring was deleted
       x-amazon-apigateway-integration:
-        credentials: { "Fn::GetAtt": [BringAPIRole, Arn] }
+        credentials: { "Fn::GetAtt": [KeyValueAPIRole, Arn] }
         uri:
           {
             "Fn::Sub": "arn:aws:apigateway:${AWS::Region}:dynamodb:action/DeleteItem",
@@ -204,7 +154,7 @@ paths:
                     },
                   "ReturnValues": "ALL_OLD"
                 }
-              - { tableName: { Ref: BringTable } }
+              - { tableName: { Ref: KeyValueTable } }
         responses:
           default:
             statusCode: 204
@@ -219,26 +169,15 @@ components:
       in: header
       name: X-API-KEY
   schemas:
-    Bring:
+    Entry:
       type: object
-      description: Bring
+      description: Entry
       properties:
         id:
           type: string
         value:
           type: string
   responses:
-    Created: #201
-      description: The request succeeded and created a new resource.
-      content:
-        application/json:
-          schema:
-            type: object
-            properties:
-              id:
-                type: string
-            required:
-              - id
     Empty:
       description: Empty Schema
       content:
@@ -246,13 +185,14 @@ components:
           schema:
             type: object
 
-    Bring:
-      description: Bring
+    Entry:
+      description: Key Value Entry
       content:
         application/json:
           schema:
             type: object
             required:
+              - id
               - value
             properties:
               id:

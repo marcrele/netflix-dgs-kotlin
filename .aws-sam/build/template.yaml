@@ -4,7 +4,7 @@ Description: 'Lambdaless API
 
   '
 Resources:
-  BringTable:
+  KeyValueTable:
     Type: AWS::DynamoDB::Table
     Properties:
       KeySchema:
@@ -16,7 +16,7 @@ Resources:
       ProvisionedThroughput:
         ReadCapacityUnits: 2
         WriteCapacityUnits: 2
-  BringAPI:
+  KeyValueAPI:
     Type: AWS::Serverless::Api
     Properties:
       StageName: Lambdaless
@@ -24,13 +24,13 @@ Resources:
         ApiKeyRequired: true
         UsagePlan:
           CreateUsagePlan: PER_API
-          UsagePlanName: BringAPIUsagePlan
+          UsagePlanName: KeyValueAPIUsagePlan
       DefinitionBody:
         Fn::Transform:
           Name: AWS::Include
           Parameters:
             Location: ../../bring-openapi.yaml
-  BringAPIRole:
+  KeyValueAPIRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -43,7 +43,7 @@ Resources:
           Action:
           - sts:AssumeRole
       Policies:
-      - PolicyName: BringAPIPolicy
+      - PolicyName: KeyValueAPIPolicy
         PolicyDocument:
           Version: '2012-10-17'
           Statement:
@@ -56,20 +56,20 @@ Resources:
             - dynamodb:Scan
             Resource:
               Fn::GetAtt:
-              - BringTable
+              - KeyValueTable
               - Arn
 Outputs:
-  BringURL:
-    Description: Bring URL
+  KeyValueURL:
+    Description: KeyValue URL
     Value:
       Fn::Join:
       - ''
       - - https://
-        - Ref: BringAPI
+        - Ref: KeyValueAPI
         - .execute-api.
         - Fn::Sub: ${AWS::Region}
         - .amazonaws.com/Lambdaless
   ApiKeyId:
     Description: API Key ApiKeyId
     Value:
-      Ref: BringAPIApiKey
+      Ref: KeyValueAPIApiKey
